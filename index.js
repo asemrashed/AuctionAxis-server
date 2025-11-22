@@ -4,7 +4,7 @@ const cors = require("cors");
 require("dotenv").config();
 const admin = require("firebase-admin");
 const jwt = require("jsonwebtoken");
-const port = process.env.PORT || 5000;
+const port = process.env.PORT;
 
 const serviceAccount = require("./auction-firebase-adminsdk.json");
 
@@ -38,7 +38,6 @@ const varifyFireToken = async (req, res, next) => {
     req.user_email = tokenDetails.email;
     next();
   } catch {
-    console.log("token invalid");
     return res.status(401).send({ message: "Unauthorized access" });
   }
 };
@@ -78,7 +77,7 @@ app.get("/", (req, res) => {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
     const auctionDB = client.db("auctionDB");
     const productCollection = auctionDB.collection("productCollection");
@@ -113,6 +112,8 @@ async function run() {
       res.send(result);
     });
 
+    
+  // My Product APIs
     app.get("/products", async (req, res) => {
       // const productFields = { title: 1, price_min:1, price_max:1, image:1}
       // const products= productCollection.find().sort({price_min: -1}).limit(6).project(productFields)
@@ -121,8 +122,6 @@ async function run() {
       res.send(result);
     });
 
-    
-  // My Product APIs
     app.get("/products/my-products", verifyJWTToken, async(req, res)=>{
       const seller_email = req.decoded_email
       const query = {email:seller_email}
@@ -264,7 +263,7 @@ async function run() {
       res.send(result);
     });
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
