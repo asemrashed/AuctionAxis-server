@@ -6,7 +6,8 @@ const admin = require("firebase-admin");
 const jwt = require("jsonwebtoken");
 const port = process.env.PORT;
 
-const serviceAccount = require("./auction-firebase-adminsdk.json");
+const FBdecoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString("utf8");
+const serviceAccount = JSON.parse(FBdecoded);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -41,6 +42,23 @@ const varifyFireToken = async (req, res, next) => {
     return res.status(401).send({ message: "Unauthorized access" });
   }
 };
+
+const checkIsUser = (req, res, next)=>{
+  const header = req.headers.authorization;
+  if(!header){
+    req.user= null;
+    return next();
+  }
+  const token = header.split(" ")[1];
+  jwt.verify(token, process.env.JWT_SECRET, function(err, decoded){
+    if(err){
+      req.user = null;
+      return next();
+    }
+    req.user = true;
+    next()
+  })
+}
 
 const verifyJWTToken = (req, res, next) => {
   const header = req.headers.authorization;
@@ -106,18 +124,24 @@ async function run() {
         res.send(result);
       }
     });
-    app.get("/users", async (req, res) => {
-      const query = req.body;
-      const result = await usersCollection.find().toArray();
-      res.send(result);
-    });
+    // app.get("/users", async (req, res) => {
+    //   const query = req.body;
+    //   const result = await usersCollection.find().toArray();
+    //   res.send(result);
+    // });
 
     
   // My Product APIs
-    app.get("/products", async (req, res) => {
-      // const productFields = { title: 1, price_min:1, price_max:1, image:1}
-      // const products= productCollection.find().sort({price_min: -1}).limit(6).project(productFields)
-      const products = productCollection.find();
+    app.get("/products", checkIsUser, async (req, res) => {
+      let projection ={}
+      if(!req.user){
+        projection={
+          email:0,
+          seller_contact:0,
+          seller_image:0
+        }
+      }
+      const products = productCollection.find().project(projection).sort({created_at:-1});
       const result = await products.toArray();
       res.send(result);
     });
@@ -137,24 +161,41 @@ async function run() {
     })
 
     // Product APIs
-    app.get("/latest-product", async (req, res) => {
+    app.get("/latest-product", checkIsUser, async (req, res) => {
+      let projection ={}
+      if(!req.user){
+        projection={
+          email:0,
+          seller_contact:0,
+          seller_image:0
+        }
+      }
       const products = productCollection
         .find()
+        .project(projection)
         .sort({ created_at: -1 })
         .limit(8);
       const result = await products.toArray();
       res.send(result);
     });
 
-    app.get("/products/:id", async (req, res) => {
+    app.get("/products/:id", checkIsUser, async (req, res) => {
+      let projection ={}
+      if(!req.user){
+        projection={
+          email:0,
+          seller_contact:0,
+          seller_image:0
+        }
+      }
       const { id } = req.params;
       let query;
       if (ObjectId.isValid(id)) {
         query = { _id: new ObjectId(id) };
       } else {
-        query = { _id: id }; // treat as string id
+        query = { _id: id }; 
       }
-      const result = await productCollection.findOne(query);
+      const result = await productCollection.findOne(query, {projection});
       res.send(result);
     });
 
