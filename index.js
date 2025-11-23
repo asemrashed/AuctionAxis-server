@@ -55,7 +55,7 @@ const checkIsUser = (req, res, next)=>{
       req.user = null;
       return next();
     }
-    req.user = true;
+    req.user = decoded;
     next()
   })
 }
